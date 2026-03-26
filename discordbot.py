@@ -112,9 +112,9 @@ def score_bar(score):
     filled = round(score / 10)
     return "✅" * filled + "⬜" * (10 - filled) # replace with emoji 
 
-intents = discordbot.Intents.default()
+intents = discord.Intents.default()
 intents.message_content = True
-client = discordbot.Client(intents=intents)
+client = discord.Client(intents=intents)
 
 @client.event
 async def on_ready():
