@@ -215,7 +215,6 @@ async def on_message(message):
         rank = next((i + 1 for i, (u, s, _) in enumerate(rows) if s == total_score and u == username), None)
         total_players = len(rows)
         rank_str = f"#{rank} of {total_players}" if rank else ""
-        await message.reply(f"Score saved! {rank_str}", mention_author=False)
     else:
         await message.add_reaction("❌")
         await message.reply("You have already submitted a score for this puzzle!", mention_author=False)
