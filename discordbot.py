@@ -1,4 +1,4 @@
-import discord
+import discordbot
 import mysql.connector
 import re
 import os
@@ -112,9 +112,9 @@ def score_bar(score):
     filled = round(score / 10)
     return "✅" * filled + "⬜" * (10 - filled) # replace with emoji 
 
-intents = discord.Intents.default()
+intents = discordbot.Intents.default()
 intents.message_content = True
-client = discord.Client(intents=intents)
+client = discordbot.Client(intents=intents)
 
 @client.event
 async def on_ready():
