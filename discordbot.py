@@ -25,7 +25,7 @@ def init_db():
             username VARCHAR(100) NOT NULL,
             puzzle_num INT NOT NULL,
             total_score INT NOT NULL,
-            round_score INT NOT NULL,
+            round_score VARCHAR(50) NOT NULL,
             submitted_at DATETIME NOT NULL,
             UNIQUE KEY unique_entry (user_id, puzzle_num)
         )
