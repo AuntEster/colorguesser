@@ -1,11 +1,11 @@
-import discordbot
+import discord
 import mysql.connector
 import re
 import os
 from datetime import datetime
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
-SCORE_CHANNEL = os.environ["general"]
+SCORE_CHANNEL = os.environ["SCORE_CHANNEL"]
 DB_HOST = os.environ["DB_HOST"]
 DB_PORT = int(os.environ.get("DB_PORT", 3306))
 DB_NAME = os.environ["DB_NAME"]
@@ -26,7 +26,7 @@ def init_db():
             puzzle_num INT NOT NULL,
             total_score INT NOT NULL,
             round_score INT NOT NULL,
-            submitted_at DATETIME NOT NULL
+            submitted_at DATETIME NOT NULL,
             UNIQUE KEY unique_entry (user_id, puzzle_num)
         )
     """)
