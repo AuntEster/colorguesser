@@ -82,6 +82,23 @@ def get_leaderboard_alltime():
     db.close()
     return results
 
+def get_leaderboard_monkey():
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT username, 
+            ROUND(AVG(total_score), 1) AS avg_score,
+            MAX(total_score) AS best_score,
+            COUNT(*) AS games_played
+        FROM colorguesser_scores 
+        GROUP BY user_id 
+        ORDER BY avg_score ASC
+    """)
+    results = cursor.fetchall()
+    cursor.close()
+    db.close()
+    return results
+
 def get_user_stats(user_id):
     db = get_db()
     cursor = db.cursor()
@@ -127,12 +144,12 @@ async def on_message(message):
         return 
     
     if message.content.startswith("!lb"):
-        rows = get_leaderboard_alltime()
+        rows = get_leaderboard_monkey()
         if not rows:
             await message.channel.send("No scores yet!")
             return
         
-        lines = ["**Worst Colorblind Monkey**"]
+        lines = ["**Most Colorblind Monkey**"]
         medals = ["🥇", "🥈", "🥉"]
         for i, (username, avg, best, games) in enumerate(rows):
             medal = medals[i] if i < 3 else f"`{i+1}.`"
