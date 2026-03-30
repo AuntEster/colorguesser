@@ -127,7 +127,7 @@ def parse_scores(content):
 
 def score_bar(score):
     filled = round(score / 10)
-    return "✅" * filled + "⬜" * (10 - filled) # replace with emoji 
+    return "🟩" * filled + "⬜" * (10 - filled) # replace with emoji 
 
 intents = discord.Intents.default()
 intents.message_content = True
