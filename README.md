@@ -1,6 +1,6 @@
 # Colorle Discord Bot
 
-A Discord bot that tracks and displays scores from [Colorle](https://colorle.app/) for my friend group. 
+A Discord bot that tracks and displays scores from [Colorle](https://colorguesser.com) for my friend group. 
 
 ---
 
@@ -75,7 +75,7 @@ Scores are submitted automatically after user shares their scores in designated 
 ## Railway deployment
 
 1. Push your code to a GitHub repository
-2. Create a new project on [Railway](https://railway.app/) and connect your repo
+2. Create a new project on [Railway](https://railway.com) and connect your repo
 3. Set all required environment variables (7 total) in the Railway dashboard under **Variables** tab
     - Database connection info goes here
 4. Railway will automatically detect the `Procfile` and run the bot as a worker
@@ -115,7 +115,3 @@ Colorle #1007 358/500
 ```
 
 ---
-
-## License
-
-MIT
