@@ -22,6 +22,7 @@ A Discord bot that tracks and displays scores from [Colorle](https://colorguesse
 | `!today` | Show the leaderboard for the latest puzzle |
 | `!lb` | Show the all-time "most colorblind" leaderboard |
 | `!stats` | Show your personal score history |
+| `!laughs` | Show the reaction leaderboard |
 | `!help` | Show all available commands |
 
 Scores are submitted automatically after user shares their scores in designated channel.

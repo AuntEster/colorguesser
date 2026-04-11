@@ -29,7 +29,18 @@ def init_db():
             submitted_at DATETIME NOT NULL,
             UNIQUE KEY unique_entry (user_id, puzzle_num)
         )
+        
+        CREATE TABLE IF NOT EXISTS laugh_reacts(
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id VARCHAR(30) NOT NULL,
+            username VARCHAR(100) NOT NULL,
+            react_count INT DEFAULT 0,
+            week_num INT NOT NULL,
+            year_num INT NOT NULL,
+            UNIQUE KEY unique_week (user_id, week_num, year_num)
+        )
     """)
+    
     db.commit()
     cursor.close()
     db.close()
@@ -129,6 +140,41 @@ def score_bar(score):
     filled = round(score / 10)
     return "🟩" * filled + "⬜" * (10 - filled) # replace with emoji 
 
+def add_laugh_react(user_id, username):
+    now = datetime.now()
+    week = now.isocalendar()[1]
+    year = now.year
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        INSERT INTO laugh_reacts (user_id, username, react_count, week_num, year_num)
+        VALUES (%s, %s, 1, %s, %s)
+        ON DUPLICATE KEY UPDATE react_count = react_count + 1, username = VALUES(username)
+    """, (str(user_id), username, week, year))
+    db.commit()
+    cursor.close()
+    db.close()
+
+def get_laugh_leaderboard():
+    now = datetime.now()
+    week = now.isocalendar()[1]
+    year = now.year
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT username, react_count
+        FROM laugh_reacts
+        WHERE week_num = %s AND year_num = %s
+        ORDER BY react_count DESC
+    """, (week, year))
+    results = cursor.fetchall()
+    cursor.close()
+    db.close()
+    return results
+
+
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
@@ -204,12 +250,29 @@ async def on_message(message):
         await message.channel.send("\n".join(lines))
         return
     
+    if message.content.startswith("!laughs"):
+        rows = get_laugh_leaderboard()
+        if not rows:
+            await message.channel.send("No laugh reacts yet!")
+            return
+        
+        lines = ["**Funniest Monkey **"]
+        medals = ["🥇", "🥈", "🥉"]
+        for i, (username, react_count) in enumerate(rows):
+            medal = medals[i] if i < 3 else f"`{i+1}.`"
+            lines.append(f"{medal} **{username}** - {react_count} laugh reacts")
+        
+        await message.channel.send("\n".join(lines))
+        return
+
+    
     if message.content.startswith("!help"):
         help_text = (
             "**Colorle Bot Commands:**\n"
             "`!lb` - Show all-time leaderboard\n"
             "`!today` - Show today's puzzle leaderboard\n"
             "`!stats` - Show your personal stats\n"
+            "`!laughs` - Show the reaction leaderboard\n"
             "`!help` - Show this help message\n\n"
         )
         await message.channel.send(help_text)
@@ -235,5 +298,24 @@ async def on_message(message):
     else:
         await message.add_reaction("❌")
         await message.reply("You have already submitted a score for this puzzle!", mention_author=False)
+        
+@client.event
+async def on_reaction_add(payload):
+    if str(payload.emoji) not in ('joy',):
+        return
+    
+    if payload.member and payload.member.bot:
+        return
+    
+    channel = client.get_channel(payload.channel_id)
+    if channel is None:
+        return
+    
+    message = await channel.fetch_message(payload.message_id)
+    
+    if payload.user_id == message.author.id: # dont count self react
+        return
+    
+    add_laugh_react(message.author.id, message.author.display_name)
         
 client.run(BOT_TOKEN)
