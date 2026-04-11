@@ -301,7 +301,7 @@ async def on_message(message):
         
 @client.event
 async def on_reaction_add(payload):
-    if str(payload.emoji) not in ('joy',):
+    if payload.emoji.name not in ('joy',):
         return
     
     if payload.member and payload.member.bot:
