@@ -11,6 +11,7 @@ A Discord bot that tracks and displays scores from [Colorle](https://colorguesse
 - **Today's leaderboard** — ranked results for the current puzzle with score bars
 - **All-time leaderboard** — ranked by average score across all puzzles
 - **Monkey leaderboard** — ranked worst-to-best (banter)
+- **Reaction leaderboard** - each user ranked by number of message reactions received (resets weekly)
 - **Personal stats** — view your full submission history
 
 ---
@@ -22,7 +23,7 @@ A Discord bot that tracks and displays scores from [Colorle](https://colorguesse
 | `!today` | Show the leaderboard for the latest puzzle |
 | `!lb` | Show the all-time "most colorblind" leaderboard |
 | `!stats` | Show your personal score history |
-| `!laughs` | Show the reaction leaderboard |
+| `!laughs` | Show the weekly reaction leaderboard |
 | `!help` | Show all available commands |
 
 Scores are submitted automatically after user shares their scores in designated channel.
@@ -100,6 +101,7 @@ CREATE TABLE colorguesser_scores (
 );
 ```
 
+The laugh_reacts table is also made on startup.
 ---
 
 ## Score Format
