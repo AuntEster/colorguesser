@@ -304,6 +304,7 @@ async def on_message(message):
         
 @client.event
 async def on_raw_reaction_add(payload):
+    print(f"reaction received: {payload.emoji.name}")
     if payload.emoji.name not in ("joy"):
         return
     
