@@ -147,16 +147,21 @@ def add_laugh_react(user_id, username):
     week = now.isocalendar()[1]
     year = now.year
 
-    db = get_db()
-    cursor = db.cursor()
-    cursor.execute("""
-        INSERT INTO laugh_reacts (user_id, username, react_count, week_num, year_num)
-        VALUES (%s, %s, 1, %s, %s)
-        ON DUPLICATE KEY UPDATE react_count = react_count + 1, username = VALUES(username)
-    """, (str(user_id), username, week, year))
-    db.commit()
-    cursor.close()
-    db.close()
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("""
+            INSERT INTO laugh_reacts (user_id, username, react_count, week_num, year_num)
+            VALUES (%s, %s, 1, %s, %s)
+            ON DUPLICATE KEY UPDATE react_count = react_count + 1, username = VALUES(username)
+        """, (str(user_id), username, week, year))
+        db.commit()
+        print(f"saved laugh for {username}")
+    except Exception as e:
+        print(f"db error: {e}")
+    finally:
+        cursor.close()
+        db.close()
 
 def get_laugh_leaderboard():
     now = datetime.now()
