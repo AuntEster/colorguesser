@@ -156,7 +156,7 @@ def add_laugh_react(user_id, username):
             ON DUPLICATE KEY UPDATE react_count = react_count + 1, username = VALUES(username)
         """, (str(user_id), username, week, year))
         db.commit()
-        print(f"saved laugh for {username}")
+        # print(f"saved laugh for {username}")
     except Exception as e:
         print(f"db error: {e}")
     finally:
@@ -264,7 +264,7 @@ async def on_message(message):
             await message.channel.send("No laugh reacts yet!")
             return
         
-        lines = ["**Funniest Monkey **"]
+        lines = ["**Funniman of the Week**"]
         medals = ["🥇", "🥈", "🥉"]
         for i, (username, react_count) in enumerate(rows):
             medal = medals[i] if i < 3 else f"`{i+1}.`"
@@ -309,7 +309,7 @@ async def on_message(message):
         
 @client.event
 async def on_raw_reaction_add(payload):
-    print(f"reaction received: {payload.emoji.name}")
+    # print(f"reaction received: {payload.emoji.name}")
     if str(payload.emoji.name) not in ("😂"): # changed to emoji for testing
         return
     
@@ -327,5 +327,5 @@ async def on_raw_reaction_add(payload):
         return
     
     add_laugh_react(message.author.id, message.author.display_name)
-    print(f"added laugh react for {message.author.display_name}")
+    # print(f"added laugh react for {message.author.display_name}")
 client.run(BOT_TOKEN)
