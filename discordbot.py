@@ -29,7 +29,9 @@ def init_db():
             submitted_at DATETIME NOT NULL,
             UNIQUE KEY unique_entry (user_id, puzzle_num)
         )
-        
+    """)
+    
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS laugh_reacts(
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id VARCHAR(30) NOT NULL,
@@ -177,6 +179,7 @@ def get_laugh_leaderboard():
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.reactions = True
 client = discord.Client(intents=intents)
 
 @client.event
@@ -300,8 +303,8 @@ async def on_message(message):
         await message.reply("You have already submitted a score for this puzzle!", mention_author=False)
         
 @client.event
-async def on_reaction_add(payload):
-    if payload.emoji.name not in ("joy",):
+async def on_raw_reaction_add(payload):
+    if payload.emoji.name not in ("joy"):
         return
     
     if payload.member and payload.member.bot:
