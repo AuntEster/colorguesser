@@ -310,7 +310,7 @@ async def on_message(message):
 @client.event
 async def on_raw_reaction_add(payload):
     print(f"reaction received: {payload.emoji.name}")
-    if payload.emoji.name not in ("joy"):
+    if str(payload.emoji.name) not in ("😂"): # changed to emoji for testing
         return
     
     if payload.member and payload.member.bot:
@@ -318,7 +318,8 @@ async def on_raw_reaction_add(payload):
     
     channel = client.get_channel(payload.channel_id)
     if channel is None:
-        return
+        print("channel not cached, fetching channel...")
+        channel = await client.fetch_channel(payload.channel_id)
     
     message = await channel.fetch_message(payload.message_id)
     
@@ -326,5 +327,5 @@ async def on_raw_reaction_add(payload):
         return
     
     add_laugh_react(message.author.id, message.author.display_name)
-        
+    print(f"added laugh react for {message.author.display_name}")
 client.run(BOT_TOKEN)
