@@ -310,7 +310,7 @@ async def on_message(message):
 @client.event
 async def on_raw_reaction_add(payload):
     # print(f"reaction received: {payload.emoji.name}")
-    if str(payload.emoji.name) not in ("😂"): # changed to emoji for testing
+    if str(payload.emoji.name) not in ("😂", "😭"): # use emoji instead of string 
         return
     
     if payload.member and payload.member.bot:
