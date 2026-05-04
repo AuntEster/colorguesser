@@ -87,7 +87,7 @@ def get_leaderboard_alltime():
             MAX(total_score) AS best_score,
             COUNT(*) AS games_played
         FROM colorguesser_scores 
-        GROUP BY user_id 
+        GROUP BY user_id, username 
         ORDER BY avg_score DESC
     """)
     results = cursor.fetchall()
@@ -104,7 +104,7 @@ def get_leaderboard_monkey():
             MAX(total_score) AS best_score,
             COUNT(*) AS games_played
         FROM colorguesser_scores 
-        GROUP BY user_id 
+        GROUP BY user_id, username
         ORDER BY avg_score ASC
     """)
     results = cursor.fetchall()
