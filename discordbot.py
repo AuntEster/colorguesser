@@ -159,8 +159,7 @@ async def on_message(message):
         for i, (username, avg, best, games) in enumerate(rows):
             medal = medals[i] if i < 3 else f"`{i+1}.`"
             lines.append(
-                f"{medal} **{username}** — Avg: {avg}, Best: {best}, "
-                f"Game{'s' if games != 1 else ''}: {games}"
+                f"{medal} **{username}** — {avg} avg  |  {best} best  |  {games} game{'s' if games != 1 else ''}"
             )
         await message.channel.send("\n".join(lines))
         return
@@ -198,10 +197,9 @@ async def on_message(message):
             return
 
         lines = [f"**{message.author.display_name}'s Colorle Stats**"]
-        for puzzle_num, total_score, round_scores, submitted_at in rows:
+        for puzzle_num, total_score, round_scores in rows:
             lines.append(
-                f"**Puzzle #{puzzle_num}** — {total_score}/500 on "
-                f"{submitted_at.strftime('%Y-%m-%d')}"
+                f"**Puzzle #{puzzle_num}** — {total_score}/500"
             )
 
         await message.channel.send("\n".join(lines))
