@@ -13,83 +13,72 @@ DB_USER = os.environ["DB_USER"]
 DB_PASSWORD = os.environ["DB_PASSWORD"]
 
 def get_db():
-    return mysql.connector.connect(host=DB_HOST, port=DB_PORT, database=DB_NAME, user=DB_USER, password=DB_PASSWORD)
+    return mysql.connector.connect(
+        host=DB_HOST, port=DB_PORT, database=DB_NAME,
+        user=DB_USER, password=DB_PASSWORD
+    )
 
 def init_db():
     db = get_db()
     cursor = db.cursor()
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS colorguesser_scores (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id VARCHAR(30) NOT NULL,
+        CREATE TABLE IF NOT EXISTS users (
+            user_id VARCHAR(30) NOT NULL PRIMARY KEY,
             username VARCHAR(100) NOT NULL,
-            puzzle_num INT NOT NULL,
-            total_score INT NOT NULL,
-            round_score VARCHAR(50) NOT NULL,
-            submitted_at DATETIME NOT NULL,
-            UNIQUE KEY unique_entry (user_id, puzzle_num)
+            updated_at DATETIME NOT NULL
         )
     """)
-    
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS laugh_reacts(
+        CREATE TABLE IF NOT EXISTS scores (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id VARCHAR(30) NOT NULL,
-            username VARCHAR(100) NOT NULL,
-            react_count INT DEFAULT 0,
-            week_num INT NOT NULL,
-            year_num INT NOT NULL,
-            UNIQUE KEY unique_week (user_id, week_num, year_num)
+            puzzle_num SMALLINT NOT NULL,
+            total_score SMALLINT NOT NULL,
+            round_scores VARCHAR(50) NOT NULL,
+            submitted_at DATETIME NOT NULL,
+            UNIQUE KEY uq_user_puzzle (user_id, puzzle_num),
+            CONSTRAINT fk_scores_user FOREIGN KEY (user_id) REFERENCES users(user_id)
         )
     """)
-    
     db.commit()
     cursor.close()
     db.close()
-    
-def save_score(user_id, username, puzzle_num, total_score, round_score):
+
+def save_score(user_id, username, puzzle_num, total_score, round_scores):
     db = get_db()
     cursor = db.cursor()
     try:
+        # update username so it stays current 
         cursor.execute("""
-            INSERT INTO colorguesser_scores 
-            (user_id, username, puzzle_num, total_score, round_score, submitted_at)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (str(user_id), username, puzzle_num, total_score, ",".join(map(str, round_score)), datetime.now()))
+            INSERT INTO users (user_id, username, updated_at)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE username = VALUES(username), updated_at = VALUES(updated_at)
+        """, (str(user_id), username, datetime.now()))
+
+        cursor.execute("""
+            INSERT INTO scores (user_id, puzzle_num, total_score, round_scores, submitted_at)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (str(user_id), puzzle_num, total_score, ",".join(map(str, round_scores)), datetime.now()))
+
         db.commit()
         return True
     except mysql.connector.IntegrityError:
+        db.rollback()
         return False
     finally:
         cursor.close()
         db.close()
-        
+
 def get_leaderboard_today(puzzle_num):
     db = get_db()
     cursor = db.cursor()
     cursor.execute("""
-        SELECT username, total_score, round_score
-        FROM colorguesser_scores 
-        WHERE puzzle_num = %s 
-        ORDER BY total_score DESC
+        SELECT u.username, s.total_score, s.round_scores
+        FROM scores s
+        JOIN users u ON s.user_id = u.user_id
+        WHERE s.puzzle_num = %s
+        ORDER BY s.total_score DESC
     """, (puzzle_num,))
-    results = cursor.fetchall()
-    cursor.close()
-    db.close()
-    return results
-
-def get_leaderboard_alltime():
-    db = get_db()
-    cursor = db.cursor()
-    cursor.execute("""
-        SELECT username, 
-            ROUND(AVG(total_score), 1) AS avg_score,
-            MAX(total_score) AS best_score,
-            COUNT(*) AS games_played
-        FROM colorguesser_scores 
-        GROUP BY user_id, username 
-        ORDER BY avg_score DESC
-    """)
     results = cursor.fetchall()
     cursor.close()
     db.close()
@@ -99,12 +88,13 @@ def get_leaderboard_monkey():
     db = get_db()
     cursor = db.cursor()
     cursor.execute("""
-        SELECT username, 
-            ROUND(AVG(total_score), 1) AS avg_score,
-            MAX(total_score) AS best_score,
-            COUNT(*) AS games_played
-        FROM colorguesser_scores 
-        GROUP BY user_id, username
+        SELECT u.username,
+               ROUND(AVG(s.total_score), 1) AS avg_score,
+               MAX(s.total_score) AS best_score,
+               COUNT(*) AS games_played
+        FROM scores s
+        JOIN users u ON s.user_id = u.user_id
+        GROUP BY s.user_id
         ORDER BY avg_score ASC
     """)
     results = cursor.fetchall()
@@ -116,10 +106,10 @@ def get_user_stats(user_id):
     db = get_db()
     cursor = db.cursor()
     cursor.execute("""
-        SELECT puzzle_num, total_score, round_score, submitted_at
-        FROM colorguesser_scores 
-        WHERE user_id = %s 
-        ORDER BY puzzle_num DESC
+        SELECT s.puzzle_num, s.total_score, s.round_scores, s.submitted_at
+        FROM scores s
+        WHERE s.user_id = %s
+        ORDER BY s.puzzle_num DESC
     """, (str(user_id),))
     results = cursor.fetchall()
     cursor.close()
@@ -130,202 +120,121 @@ def parse_scores(content):
     header = re.search(r'Colorle\s+#(\d+)\s+(\d+)/500', content)
     if not header:
         return None
-    
-    puzzle_num = int(header.group(1))
+
+    puzzle_num  = int(header.group(1))
     total_score = int(header.group(2))
-    
     round_scores = [int(m) for m in re.findall(r'(\d+)/100', content)]
-    
+
     return puzzle_num, total_score, round_scores
 
 def score_bar(score):
     filled = round(score / 10)
-    return "🟩" * filled + "⬜" * (10 - filled) # replace with emoji 
+    return "🟩" * filled + "⬜" * (10 - filled)
 
-def add_laugh_react(user_id, username):
-    now = datetime.now()
-    week = now.isocalendar()[1]
-    year = now.year
-
-    try:
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute("""
-            INSERT INTO laugh_reacts (user_id, username, react_count, week_num, year_num)
-            VALUES (%s, %s, 1, %s, %s)
-            ON DUPLICATE KEY UPDATE react_count = react_count + 1, username = VALUES(username)
-        """, (str(user_id), username, week, year))
-        db.commit()
-        # print(f"saved laugh for {username}")
-    except Exception as e:
-        print(f"db error: {e}")
-    finally:
-        cursor.close()
-        db.close()
-
-def get_laugh_leaderboard():
-    now = datetime.now()
-    week = now.isocalendar()[1]
-    year = now.year
-
-    db = get_db()
-    cursor = db.cursor()
-    cursor.execute("""
-        SELECT username, react_count
-        FROM laugh_reacts
-        WHERE week_num = %s AND year_num = %s
-        ORDER BY react_count DESC
-    """, (week, year))
-    results = cursor.fetchall()
-    cursor.close()
-    db.close()
-    return results
-
+# discord client setup
 
 intents = discord.Intents.default()
 intents.message_content = True
-intents.reactions = True
 client = discord.Client(intents=intents)
 
 @client.event
 async def on_ready():
     init_db()
-    print(f"logged in as {client.user} watching {SCORE_CHANNEL}")
-    
+    print(f"Logged in as {client.user} | watching #{SCORE_CHANNEL}")
+
 @client.event
 async def on_message(message):
     if message.author.bot:
-        return 
-    
+        return
+
+    # !lb command
     if message.content.startswith("!lb"):
         rows = get_leaderboard_monkey()
         if not rows:
             await message.channel.send("No scores yet!")
             return
-        
-        lines = ["**Most Colorblind Monkey**"]
+
+        lines  = ["**Most Colorblind Monkey**"]
         medals = ["🥇", "🥈", "🥉"]
         for i, (username, avg, best, games) in enumerate(rows):
             medal = medals[i] if i < 3 else f"`{i+1}.`"
-            lines.append(f"{medal} **{username}** - Avg: {avg}, Best: {best}, Game{'s' if games != 1 else ''}: {games}")
-            
+            lines.append(
+                f"{medal} **{username}** — Avg: {avg}, Best: {best}, "
+                f"Game{'s' if games != 1 else ''}: {games}"
+            )
         await message.channel.send("\n".join(lines))
         return
-    
+
+    # !today command
     if message.content.startswith("!today"):
         db = get_db()
         cursor = db.cursor()
-        cursor.execute("SELECT MAX(puzzle_num) FROM colorguesser_scores")
+        cursor.execute("SELECT MAX(puzzle_num) FROM scores")
         result = cursor.fetchone()
         cursor.close()
         db.close()
-        
+
         if not result or result[0] is None:
             await message.channel.send("No scores yet!")
             return
-        
+
         puzzle_num = result[0]
         rows = get_leaderboard_today(puzzle_num)
-        
-        lines = [f"**Colorle #{puzzle_num} Leaderboard**"]
+
+        lines  = [f"**Colorle #{puzzle_num} Leaderboard**"]
         medals = ["🥇", "🥈", "🥉"]
-        
-        for i, (username, total_score, round_score) in enumerate(rows):
+        for i, (username, total_score, round_scores) in enumerate(rows):
             medal = medals[i] if i < 3 else f"`{i+1}.`"
-            round_list = round_score.split(",") if round_score else []
-            bars = " ".join(score_bar(int(s)) for s in round_list) if round_list else ""
             lines.append(f"{medal} **{username}** {total_score}/500")
-            if bars:
-                lines.append(f"    {bars}")
-                
+
         await message.channel.send("\n".join(lines))
         return
-    
+
+    # !stats command
     if message.content.startswith("!stats"):
         rows = get_user_stats(message.author.id)
         if not rows:
             await message.channel.send("You haven't submitted any scores yet!")
             return
-        
-        lines = [f"**{message.author.name}'s Colorle Stats**"]
-        for puzzle_num, total_score, round_score, submitted_at in rows:
-            round_list = round_score.split(",") if round_score else []
-            bars = " ".join(score_bar(int(s)) for s in round_list) if round_list else ""
-            lines.append(f"**Puzzle #{puzzle_num}** - {total_score}/500 on {submitted_at.strftime('%Y-%m-%d')}")
-            if bars:
-                lines.append(f"    {bars}")
-        
-        await message.channel.send("\n".join(lines))
-        return
-    
-    if message.content.startswith("!laughs"):
-        rows = get_laugh_leaderboard()
-        if not rows:
-            await message.channel.send("No laugh reacts yet!")
-            return
-        
-        lines = ["**Funniman of the Week**"]
-        medals = ["🥇", "🥈", "🥉"]
-        for i, (username, react_count) in enumerate(rows):
-            medal = medals[i] if i < 3 else f"`{i+1}.`"
-            lines.append(f"{medal} **{username}** - {react_count} laugh reacts")
-        
+
+        lines = [f"**{message.author.display_name}'s Colorle Stats**"]
+        for puzzle_num, total_score, round_scores, submitted_at in rows:
+            lines.append(
+                f"**Puzzle #{puzzle_num}** — {total_score}/500 on "
+                f"{submitted_at.strftime('%Y-%m-%d')}"
+            )
+
         await message.channel.send("\n".join(lines))
         return
 
-    
+    # !help command
     if message.content.startswith("!help"):
-        help_text = (
+        await message.channel.send(
             "**Colorle Bot Commands:**\n"
-            "`!lb` - Show all-time leaderboard\n"
-            "`!today` - Show today's puzzle leaderboard\n"
-            "`!stats` - Show your personal stats\n"
-            "`!laughs` - Show the reaction leaderboard\n"
-            "`!help` - Show this help message\n\n"
+            "`!today` — Today's puzzle leaderboard\n"
+            "`!lb`    — All-time most-colorblind leaderboard\n"
+            "`!stats` — Your personal score history\n"
+            "`!help`  — Show this message"
         )
-        await message.channel.send(help_text)
         return
-    
+
+    # score submission 
     if message.channel.name != SCORE_CHANNEL:
         return
-    
+
     parsed = parse_scores(message.content)
     if not parsed:
         return
-    
+
     puzzle_num, total_score, round_scores = parsed
-    username = message.author.display_name
-    is_new = save_score(message.author.id, username, puzzle_num, total_score, round_scores)
-    
+    is_new = save_score(
+        message.author.id, message.author.display_name,
+        puzzle_num, total_score, round_scores
+    )
+
     if is_new:
         await message.add_reaction("✅")
-        rows = get_leaderboard_today(puzzle_num)
-        rank = next((i + 1 for i, (u, s, _) in enumerate(rows) if s == total_score and u == username), None)
-        total_players = len(rows)
-        rank_str = f"#{rank} of {total_players}" if rank else ""
     else:
         await message.add_reaction("❌")
-        await message.reply("You have already submitted a score for this puzzle!", mention_author=False)
-        
-@client.event
-async def on_raw_reaction_add(payload):
-    # print(f"reaction received: {payload.emoji.name}")
-    if str(payload.emoji.name) not in ("😂", "😭"): # use emoji instead of string 
-        return
-    
-    if payload.member and payload.member.bot:
-        return
-    
-    channel = client.get_channel(payload.channel_id)
-    if channel is None:
-        print("channel not cached, fetching channel...")
-        channel = await client.fetch_channel(payload.channel_id)
-    
-    message = await channel.fetch_message(payload.message_id)
-    
-    if payload.user_id == message.author.id: # dont count self react
-        return
-    
-    add_laugh_react(message.author.id, message.author.display_name)
-    # print(f"added laugh react for {message.author.display_name}")
+
 client.run(BOT_TOKEN)
