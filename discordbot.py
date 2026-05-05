@@ -3,6 +3,7 @@ import mysql.connector
 import re
 import os
 from datetime import datetime
+import asyncio
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 SCORE_CHANNEL = os.environ["SCORE_CHANNEL"]
@@ -132,7 +133,6 @@ def score_bar(score):
     return "🟩" * filled + "⬜" * (10 - filled)
 
 # discord client setup
-
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
@@ -201,12 +201,46 @@ async def on_message(message):
             await message.channel.send(f"{target.display_name} hasn't submitted any scores yet!")
             return
 
-        lines = [f"**{target.display_name}'s Colorle Stats**"]
-        for puzzle_num, total_score, round_scores in rows:
-            lines.append(f"**#{puzzle_num}** - {total_score}/500")
+        # each page lists 10 puzzles
+        page_size = 10
+        pages = [rows[i:i+page_size] for i in range(0, len(rows), page_size)]
+        total_pages = len(pages)
 
-        await message.channel.send("\n".join(lines))
-        return
+        def build_page(page_num):
+            lines = [f"**{target.display_name}'s Colorle Stats** (page {page_num+1}/{total_pages})"]
+            for puzzle_num, total_score, round_scores in pages[page_num]:
+                lines.append(f"**#{puzzle_num}** - {total_score}/500")
+            return "\n".join(lines)
+
+        # send without reaction if only 1 page 
+        if total_pages == 1:
+            await message.channel.send(build_page(0))
+            return
+
+        current = 0
+        sent = await message.channel.send(build_page(current))
+        await sent.add_reaction("⬅️")
+        await sent.add_reaction("➡️")
+
+        def check(reaction, user):
+            return (
+                user == message.author
+                and reaction.message.id == sent.id
+                and str(reaction.emoji) in ["⬅️", "➡️"]
+            )
+
+        while True:
+            try:
+                reaction, user = await client.wait_for("reaction_add", timeout=60.0, check=check) # after 60 seconds remove reactions
+                if str(reaction.emoji) == "➡️" and current < total_pages - 1:
+                    current += 1
+                elif str(reaction.emoji) == "⬅️" and current > 0:
+                    current -= 1
+                await sent.edit(content=build_page(current))
+                await sent.remove_reaction(reaction.emoji, user)
+            except asyncio.TimeoutError:
+                await sent.clear_reactions()
+                break
 
     # !help command
     if message.content.startswith("!help"):

@@ -1,3 +1,5 @@
 .venv/
+.vscode/
 SSHkeys/
 scores_backup.sql
+ColorGuesser.session.sql
