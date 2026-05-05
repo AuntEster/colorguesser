@@ -197,7 +197,7 @@ async def on_message(message):
             return
 
         lines = [f"**{message.author.display_name}'s Colorle Stats**"]
-        for puzzle_num, total_score, round_scores in rows:
+        for puzzle_num, total_score, round_scores, submitted_at in rows:
             lines.append(
                 f"**Puzzle #{puzzle_num}** — {total_score}/500"
             )
