@@ -106,7 +106,7 @@ def get_user_stats(user_id):
     db = get_db()
     cursor = db.cursor()
     cursor.execute("""
-        SELECT s.puzzle_num, s.total_score, s.round_scores, s.submitted_at
+        SELECT s.puzzle_num, s.total_score, s.round_scores
         FROM scores s
         WHERE s.user_id = %s
         ORDER BY s.puzzle_num DESC
@@ -159,7 +159,7 @@ async def on_message(message):
         for i, (username, avg, best, games) in enumerate(rows):
             medal = medals[i] if i < 3 else f"`{i+1}.`"
             lines.append(
-                f"{medal} **{username}** — {avg} avg  |  {best} best  |  {games} game{'s' if games != 1 else ''}"
+                f"{medal} **{username}** - {avg} avg  |  {best} best  |  {games} game{'s' if games != 1 else ''}"
             )
         await message.channel.send("\n".join(lines))
         return
@@ -191,16 +191,19 @@ async def on_message(message):
 
     # !stats command
     if message.content.startswith("!stats"):
-        rows = get_user_stats(message.author.id)
+        if message.mentions:
+            target = message.mentions[0]
+        else:
+            target = message.author
+
+        rows = get_user_stats(target.id)
         if not rows:
-            await message.channel.send("You haven't submitted any scores yet!")
+            await message.channel.send(f"{target.display_name} hasn't submitted any scores yet!")
             return
 
-        lines = [f"**{message.author.display_name}'s Colorle Stats**"]
-        for puzzle_num, total_score, round_scores, submitted_at in rows:
-            lines.append(
-                f"**Puzzle #{puzzle_num}** — {total_score}/500"
-            )
+        lines = [f"**{target.display_name}'s Colorle Stats**"]
+        for puzzle_num, total_score, round_scores in rows:
+            lines.append(f"**#{puzzle_num}** - {total_score}/500")
 
         await message.channel.send("\n".join(lines))
         return
@@ -209,10 +212,10 @@ async def on_message(message):
     if message.content.startswith("!help"):
         await message.channel.send(
             "**Colorle Bot Commands:**\n"
-            "`!today` — Today's puzzle leaderboard\n"
-            "`!lb`    — All-time most-colorblind leaderboard\n"
-            "`!stats` — Your personal score history\n"
-            "`!help`  — Show this message"
+            "`!today` - Today's puzzle leaderboard\n"
+            "`!lb`    - All-time most-colorblind leaderboard\n"
+            "`!stats` - Your personal score history\n"
+            "`!help`  - Show this message"
         )
         return
 
